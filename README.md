@@ -1,4 +1,4 @@
-# The client Golang SDK to retrieve text from starling
+# The Golang SDK to retrieve i18n text or package
 
 ## Quick Start
 
