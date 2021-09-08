@@ -1,4 +1,4 @@
-package starling_goclient_public
+package i18n
 
 import (
 	"context"

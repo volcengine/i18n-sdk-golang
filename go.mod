@@ -1,4 +1,4 @@
-module code.byted.org/ies/starling_goclient_public
+module github.com/volcengine/i18n-sdk-golang
 
 go 1.14
 
