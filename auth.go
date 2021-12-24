@@ -17,7 +17,8 @@ type Header struct {
 // Payload is the JWT payload data structure and should keep sync with the
 // starling server-side definition.
 type Payload struct {
-	ProjectName string `json:"project_name"`
+	ProjectID   int64  `json:"project_id"`
+	NamespaceID int64  `json:"namespace_id"`
 	ExpiresAt   int64  `json:"expires_at"`
 	Operator    string `json:"operator"`
 	AccessType  string `json:"access_type"`
@@ -25,14 +26,19 @@ type Payload struct {
 }
 
 // CreateAuthToken creates the jwt token based on the app key of the project.
-func CreateAuthToken(key, projectName, operator string) string {
+func CreateAuthToken(projectID, namespaceID int64, key, operator string) string {
+	if projectID == 0 || namespaceID == 0 || len(key) == 0 {
+		return ""
+	}
 	header := &Header{
 		Algorithm: "HS256",
 		Type:      "JWT",
 	}
+
 	payload := &Payload{
-		ProjectName: projectName,
-		ExpiresAt:   time.Now().Unix() + 60,
+		ProjectID:   projectID,
+		NamespaceID: namespaceID,
+		ExpiresAt:   time.Now().Unix() + 60, // a token is valid for 1 minute
 		Operator:    operator,
 		AccessType:  "SDK",
 		UserAgent:   Platform,

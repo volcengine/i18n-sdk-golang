@@ -1,11 +1,13 @@
 package i18n
 
 import (
+	"errors"
 	"net"
 	"os"
 	"os/exec"
 	"runtime"
 	"strings"
+	"sync"
 	"time"
 
 	jsoniter "github.com/json-iterator/go"
@@ -24,41 +26,26 @@ const (
 	clientPackageEmptyMetricsKey  = "client.package.empty"
 	clientKeyEmptyMetricsKey      = "client.key.empty"
 
-	defaultRefreshInterval = time.Second * 10
+	defaultLeftDelimiter   = "{"
+	defaultRightDelimiter  = "}"
+	defaultRefreshInterval = time.Minute
 	defaultCacheDuration   = time.Hour * 6
-
-	apiVersionGetPackage        = "V1"
-	apiVersionSimilarFallback   = "V2"
-	apiVersionGetPackageVersion = "V3"
-
-	// apiVersion(V1|V2|V3), mode, projectName, namespace, lang
-	keyFmt = "/%s/%s/%s/%s/%s"        
-	// apiVersion(V1|V2|V3), mode, projectID, namespaceID, lang, version, langType
-	keyFmtVersion = "/%s/%s/%s/%s/%s/%s/%s/"
 )
 
-// ModeType defines a custom type which represents the mode to retrieve process.
-type ModeType string
-
-// FallbackType defines a custom type which represents fallback language strategy.
-type FallbackType uint8
-
 const (
-	// ModeNormal is the default mode which is used for online production.
-	ModeNormal ModeType = "normal"
-	// ModeGray is used for verification during the developing process.
-	ModeGray ModeType = "gray"
-	// ModeTest is to retreive the offline test data for testing.
-	ModeTest ModeType = "test"
+	// EnvNormal is the default environment which is used for online production.
+	EnvNormal = "normal"
+	// EnvGray is used for verification during the developing process.
+	EnvGray = "gray"
+	// EnvTest is used to get the offline test data for testing.
+	EnvTest = "test"
+)
 
-	// FallbackLangNone uses no fallback strategy.
-	FallbackLangNone FallbackType = 0
-	// FallbackLangDefault uses the default fallback strategy.
-	FallbackLangDefault FallbackType = 1
-	// FallbackLangSimilar uses the similar language fallback strategy.
-	FallbackLangSimilar FallbackType = 2
-	// FallbackLangCustom uses customized fallback strategy.
-	FallbackLangCustom FallbackType = 3
+var (
+	ErrInvalidParams      = errors.New("invalid given params")
+	ErrKeyNotExist        = errors.New("given key not exist")
+	ErrBackToSourceFailed = errors.New("back to source to fetch data failed")
+	ErrInvalidICUFormat   = errors.New("invalid ICU format string")
 )
 
 var (
@@ -73,6 +60,9 @@ var (
 
 	// Set the global json library and make compatible with std json library.
 	json = jsoniter.ConfigCompatibleWithStandardLibrary
+
+	// Option object pool for reuse.
+	op = optionPool{Pool: sync.Pool{New: func() interface{} { return &option{} }}}
 )
 
 func init() {
@@ -127,28 +117,28 @@ func init() {
 	}
 
 	// Try to get local language on different systems and use Chinese as default.
-    switch runtime.GOOS {
-    case "windows":
-        cmd := exec.Command("powershell", "Get-Culture | select -exp Name")
-        output, err := cmd.Output()
-        if err == nil {
-            langLoc := strings.Split(strings.TrimSpace(string(output)), "-")
-            LocalLang = langLoc[0]
-        }
-    case "darwin":
-        cmd := exec.Command("sh", "osascript -e 'user locale of (get system info)'")
-        output, err := cmd.Output()
-        if err == nil {
-            langLoc := strings.Split(strings.TrimSpace(string(output)), "_")
+	switch runtime.GOOS {
+	case "windows":
+		cmd := exec.Command("powershell", "Get-Culture | select -exp Name")
+		output, err := cmd.Output()
+		if err == nil {
+			langLoc := strings.Split(strings.TrimSpace(string(output)), "-")
 			LocalLang = langLoc[0]
-        }
-    case "linux":
-        if envlang, ok := os.LookupEnv("LANG"); ok {
+		}
+	case "darwin":
+		cmd := exec.Command("sh", "osascript -e 'user locale of (get system info)'")
+		output, err := cmd.Output()
+		if err == nil {
+			langLoc := strings.Split(strings.TrimSpace(string(output)), "_")
+			LocalLang = langLoc[0]
+		}
+	case "linux":
+		if envlang, ok := os.LookupEnv("LANG"); ok {
 			langLocRaw := strings.Split(strings.TrimSpace(envlang), ".")[0]
-            langLoc := strings.Split(langLocRaw, "_")
-            LocalLang = langLoc[0]
-        }
-    }
+			langLoc := strings.Split(langLocRaw, "_")
+			LocalLang = langLoc[0]
+		}
+	}
 	if len(LocalLang) == 0 || LocalLang == "zh" {
 		LocalLang = "zh-Hans"
 	}

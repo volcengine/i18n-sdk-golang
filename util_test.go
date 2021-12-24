@@ -28,25 +28,11 @@ func TestGroup(t *testing.T) {
 	g := Group{}
 	key := "group"
 	fn := func() (interface{}, error) {
-		time.Sleep(time.Millisecond*100)
+		time.Sleep(time.Millisecond * 100)
 		return 123, nil
 	}
 	val, _ := g.Do(key, fn)
 	assert.Equal(t, val, 123)
-}
-
-func TestComposeClientKey(t *testing.T) {
-	for _, item := range []struct{
-		project   string
-		namespace string
-		expect    string
-	}{
-		{"", "", "[]$#$[]"},
-		{"a", "b", "[a]$#$[b]"},
-		{"project", "namespace", "[project]$#$[namespace]"},
-	} {
-		assert.Equal(t, item.expect, composeClientKey(item.project, item.namespace))
-	}
 }
 
 func TestRetry(t *testing.T) {

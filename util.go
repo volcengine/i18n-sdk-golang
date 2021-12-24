@@ -3,6 +3,7 @@ package i18n
 import (
 	"log"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 )
@@ -131,6 +132,8 @@ func (g *Group) Do(key string, fn func() (interface{}, error)) (interface{}, err
 	return c.val, c.err
 }
 
-func composeClientKey(project, namespace string) string {
-	return "[" + project + "]$#$[" + namespace + "]"
+func buildCacheKey(pid, nid int64, env, lang string) string {
+	pidStr := strconv.FormatInt(pid, 10)
+	nidStr := strconv.FormatInt(nid, 10)
+	return pidStr + "/" + nidStr + "/" + env + "/" + lang
 }
